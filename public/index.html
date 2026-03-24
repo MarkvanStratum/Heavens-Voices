@@ -244,6 +244,33 @@ footer {
   border-radius: 20px;
   animation: popIn 0.3s ease;
 }
+/* 🔥 MAKE CHAT FULL SCREEN WHEN LOGGED IN */
+
+body.logged-in .wrap {
+  max-width: none;
+  width: 100%;
+  padding: 0 10px 40px;
+}
+
+body.logged-in #mainGrid {
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+body.logged-in #chatCard {
+  width: 100%;
+  height: calc(100vh - 120px);
+}
+
+body.logged-in .chat-shell {
+  height: calc(100vh - 120px);
+  grid-template-columns: 280px 1fr;
+}
+
+body.logged-in .chat-log {
+  flex: 1;
+  overflow-y: auto;
+}
 </style>
 </head>
 
