@@ -570,15 +570,15 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
     let expiresAt = null;
     let isLifetime = false;
 
-    if (plan === '2995' || plan === '3595') {
-        const date = new Date();
-        date.setDate(date.getDate() + 30);
-        expiresAt = date;
-        isLifetime = false;
-    } else if (plan === '4995') {
-        expiresAt = null;
-        isLifetime = true;
-    }
+    if (plan === 'god' || plan === 'all') {
+    const date = new Date();
+    date.setDate(date.getDate() + 30);
+    expiresAt = date;
+    isLifetime = false;
+} else if (plan === 'lifetime') {
+    expiresAt = null;
+    isLifetime = true;
+}
 
     try {
         if (userId) {
