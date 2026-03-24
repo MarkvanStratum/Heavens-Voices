@@ -34,6 +34,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 app.use(cors());
+app.use(express.json());
 
 // JSON parser FIRST
 // ✅ STRIPE WEBHOOK MUST COME FIRST
@@ -626,8 +627,6 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 
     res.json({ received: true });
 });
-
-app.use(express.json());
 
 app.get("/", (req, res) => {
 	res.send(`
