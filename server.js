@@ -36,16 +36,25 @@ const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 app.use(cors());
 
 // JSON parser FIRST
-app.use(express.json());
+// ✅ STRIPE WEBHOOK MUST COME FIRST
+app.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+    const sig = req.headers["stripe-signature"];
+    let event;
 
-// Only special-case webhook AFTER
-app.use((req, res, next) => {
-	if (req.originalUrl === "/webhook") {
-		express.raw({ type: "application/json" })(req, res, next);
-	} else {
-		next();
-	}
+    try {
+        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    } catch (err) {
+        console.error("Webhook Signature Error:", err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    // (keep your existing webhook logic here)
+
+    res.json({ received: true });
 });
+
+// ✅ THEN JSON parser for everything else
+app.use(express.json());
 
 // THEN routes
 app.post("/api/create-landing-payment", handleCreateIntent);
