@@ -34,12 +34,97 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 app.use(cors());
+
+//--------------------------------------------
+// STRIPE WEBHOOK (CRITICAL: MUST BE BEFORE express.json())
+//--------------------------------------------
+
+app.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+    const sig = req.headers["stripe-signature"];
+    let event;
+
+    try {
+        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    } catch (err) {
+        console.error("Webhook Signature Error:", err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    async function applyPlan(plan, email) {
+        let expiresAt = null;
+        let isLifetime = false;
+
+        if (plan === 'god' || plan === 'all') {
+            const date = new Date();
+            date.setDate(date.getDate() + 30);
+            expiresAt = date;
+            isLifetime = false;
+        } else if (plan === 'lifetime') {
+            expiresAt = null;
+            isLifetime = true;
+        }
+
+        try {
+            // Case-insensitive update using LOWER() to ensure the email matches
+            const result = await pool.query(
+                "UPDATE users SET plan = $1, expires_at = $2, lifetime = $3, messages_sent = 0 WHERE LOWER(email) = LOWER($4)",
+                [plan, expiresAt, isLifetime, email]
+            );
+            
+            if (result.rowCount > 0) {
+                console.log(`✅ SUCCESS: Plan ${plan} applied to ${email}`);
+            } else {
+                console.log(`⚠️ WARNING: No user found with email ${email} to upgrade.`);
+            }
+        } catch (err) {
+            console.error("❌ DATABASE ERROR during plan update:", err);
+        }
+    }
+
+    if (event.type === "payment_intent.succeeded") {
+        const paymentIntent = event.data.object;
+        const plan = paymentIntent.metadata?.plan;
+        const email = paymentIntent.metadata?.email; 
+
+        console.log("💳 Processing payment_intent.succeeded for:", email);
+
+        if (email) {
+            // Check if user exists. If not, create them.
+            const userCheck = await pool.query("SELECT id FROM users WHERE LOWER(email) = LOWER($1)", [email]);
+            
+            if (userCheck.rows.length === 0) {
+                const tempPassword = crypto.randomBytes(8).toString('hex');
+                const hashed = await bcrypt.hash(tempPassword, 10);
+                
+                await pool.query(
+                    "INSERT INTO users (email, password, plan, lifetime, messages_sent) VALUES ($1, $2, $3, $4, 0)",
+                    [email.toLowerCase(), hashed, plan, plan === 'lifetime']
+                );
+                console.log(`👤 New User Created from Webhook: ${email}`);
+            }
+
+            await applyPlan(plan, email);
+        }
+    }
+
+    if (event.type === "checkout.session.completed") {
+        const session = event.data.object;
+        const plan = session.metadata?.plan;
+        const email = session.metadata?.email || session.customer_details?.email;
+
+        if (email) {
+            await applyPlan(plan, email);
+        }
+    }
+
+    res.json({ received: true });
+});
+
+//--------------------------------------------
+// MIDDLEWARE (AFTER WEBHOOK)
+//--------------------------------------------
+
 app.use(express.json());
-
-// JSON parser FIRST
-// ✅ STRIPE WEBHOOK MUST COME FIRST
-
-
 
 // THEN routes
 app.post("/api/create-landing-payment", handleCreateIntent);
@@ -57,14 +142,14 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Add this to verify the connection in your terminal
 pool.connect((err) => {
   if (err) {
     console.error("❌ Database connection failed:", err.stack);
   } else {
     console.log("✅ Connected to PostgreSQL database");
   }
-});// Initialize essential DB tables
+});
+
 (async () => {
 	try {
 		await pool.query(`
@@ -155,18 +240,14 @@ function hasActiveAccess(user) {
 
 function canAccessCharacter(user, characterId) {
 	if (!hasActiveAccess(user)) return false;
-
 	if (user.lifetime) return true;
-
 	if (user.plan === "all") return true;
-
 	if (user.plan === "god" && characterId === 1) return true;
-
 	return false;
 }
 
 //--------------------------------------------
-//	REGISTER
+//	REGISTER / LOGIN
 //--------------------------------------------
 
 app.post("/api/register", async (req, res) => {
@@ -182,25 +263,15 @@ app.post("/api/register", async (req, res) => {
 			return res.status(400).json({ error: "User already exists" });
 
 		const hashed = await bcrypt.hash(password, 10);
-
-		await pool.query(
-			`INSERT INTO users (email, password) VALUES ($1, $2)`,
-			[email, hashed]
-		);
-
+		await pool.query(`INSERT INTO users (email, password) VALUES ($1, $2)`, [email, hashed]);
 		res.status(201).json({ ok: true, message: "Registered successfully" });
 	} catch (err) {
 		res.status(500).json({ error: "Server error" });
 	}
 });
 
-//--------------------------------------------
-//	LOGIN
-//--------------------------------------------
-
 app.post("/api/login", async (req, res) => {
 	const { email, password } = req.body || {};
-
 	try {
 		const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
 		if (result.rows.length === 0)
@@ -210,47 +281,27 @@ app.post("/api/login", async (req, res) => {
 		const match = await bcrypt.compare(password, user.password);
 		if (!match) return res.status(400).json({ error: "Invalid credentials" });
 
-		const token = jwt.sign(
-			{ id: user.id, email: user.email },
-			SECRET_KEY,
-			{ expiresIn: "7d" }
-		);
-
+		const token = jwt.sign({ id: user.id, email: user.email }, SECRET_KEY, { expiresIn: "7d" });
 		res.json({ token });
 	} catch (err) {
 		res.status(500).json({ error: "Server error" });
 	}
 });
 
-// 1. Remove 'authenticateToken' from this route to allow guests
 app.post("/api/create-payment-intent", authenticateToken, async (req, res) => {
     try {
         const { plan } = req.body;
-        
-        // This pulls the email from your login session automatically
         const email = req.user.email;
         const userId = req.user.id;
-
-        const amounts = {
-            'god': 2995,
-            'all': 3595,
-            'lifetime': 4995
-        };
-
+        const amounts = { 'god': 2995, 'all': 3595, 'lifetime': 4995 };
         const amount = amounts[plan];
 
-        if (!amount) {
-            return res.status(400).json({ error: "Please select a valid plan." });
-        }
+        if (!amount) return res.status(400).json({ error: "Please select a valid plan." });
 
         const paymentIntent = await stripe.paymentIntents.create({
             amount,
             currency: "usd",
-            metadata: { 
-                plan, 
-                email,
-                userId 
-            },
+            metadata: { plan, email, userId },
         });
 
         res.json({ clientSecret: paymentIntent.client_secret });
@@ -259,26 +310,17 @@ app.post("/api/create-payment-intent", authenticateToken, async (req, res) => {
     }
 });
 
-//--------------------------------------------
-// STRIPE CHECKOUT (ONE-TIME PAYMENTS)
-//--------------------------------------------
-
 app.post("/api/create-checkout", authenticateToken, async (req, res) => {
 	try {
 		const { plan } = req.body;
-
-		let amount;
-		let name;
+		let amount, name;
 
 		if (plan === "god") {
-			amount = 2995;
-			name = "God Access (30 days)";
+			amount = 2995; name = "God Access (30 days)";
 		} else if (plan === "all") {
-			amount = 3595;
-			name = "Full Access (30 days)";
+			amount = 3595; name = "Full Access (30 days)";
 		} else if (plan === "lifetime") {
-			amount = 4995;
-			name = "Lifetime Access";
+			amount = 4995; name = "Lifetime Access";
 		} else {
 			return res.status(400).json({ error: "Invalid plan" });
 		}
@@ -287,30 +329,19 @@ app.post("/api/create-checkout", authenticateToken, async (req, res) => {
 			payment_method_types: ["card"],
 			mode: "payment",
 			customer_email: req.user.email,
-			line_items: [
-				{
-					price_data: {
-						currency: "usd",
-						product_data: { name },
-						unit_amount: amount
-					},
-					quantity: 1
-				}
-			],
+			line_items: [{ price_data: { currency: "usd", product_data: { name }, unit_amount: amount }, quantity: 1 }],
 			metadata: { plan },
-			success_url: "https://your-site.com/success",
-			cancel_url: "https://your-site.com/cancel"
+			success_url: "https://www.speaktoheaven.com/success",
+			cancel_url: "https://www.speaktoheaven.com/cancel"
 		});
-
 		res.json({ url: session.url });
 	} catch (err) {
-		console.error("Checkout error:", err);
 		res.status(500).json({ error: "Stripe error" });
 	}
 });
 
 //--------------------------------------------
-//	FILE UPLOADS
+//	FILE UPLOADS / STATIC FILES
 //--------------------------------------------
 
 const uploadsDir = path.join(__dirname, "uploads");
@@ -323,80 +354,41 @@ const storage = multer.diskStorage({
 		cb(null, unique + path.extname(file.originalname));
 	}
 });
-
-const upload = multer({
-	storage,
-	limits: { fileSize: 5 * 1024 * 1024 }
-});
+const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
 
 app.post("/api/upload", authenticateToken, upload.single("file"), (req, res) => {
-	if (!req.file)
-		return res.status(400).json({ error: "No file uploaded" });
-
+	if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 	res.json({ url: `/uploads/${req.file.filename}` });
 });
 
 app.use("/uploads", express.static(uploadsDir));
-
-//--------------------------------------------
-//	SERVE STATIC IMAGES
-//--------------------------------------------
-
-const imageDir = path.resolve(__dirname, "public/img");
-app.use("/img", express.static(imageDir));
-
-//--------------------------------------------
-// FRONTEND STATIC FILES
-//--------------------------------------------
-
-const frontendPath = path.join(__dirname, "public");
-
-app.use(express.static(frontendPath));
+app.use("/img", express.static(path.resolve(__dirname, "public/img")));
+app.use(express.static(path.join(__dirname, "public")));
 
 // Inject footer links into every HTML page
 app.use((req, res, next) => {
 	const oldSend = res.send;
-
 	res.send = function (data) {
 		if (typeof data === "string" && data.includes("</body>")) {
-			data = data.replace(
-				"</body>",
-				`
-<footer style="
-margin-top:40px;
-padding:20px;
-text-align:center;
-font-size:14px;
-color:#aaa;
-border-top:1px solid rgba(0,0,0,0.1);
-">
-<a href="/privacy-policy.html">Privacy Policy</a> |
-<a href="/terms-and-conditions.html">Terms & Conditions</a>
-</footer>
-</body>`
-			);
+			data = data.replace("</body>", `
+<footer style="margin-top:40px;padding:20px;text-align:center;font-size:14px;color:#aaa;border-top:1px solid rgba(0,0,0,0.1);">
+<a href="/privacy-policy.html">Privacy Policy</a> | <a href="/terms-and-conditions.html">Terms & Conditions</a>
+</footer></body>`);
 		}
 		return oldSend.call(this, data);
 	};
-
 	next();
 });
+
 //--------------------------------------------
-//	OPENAI/OPENROUTER CLIENT
+//	CHAT LOGIC
 //--------------------------------------------
 
 const openai = new OpenAI({	
 	baseURL: "https://openrouter.ai/api/v1",
 	apiKey: process.env.OPENROUTER_API_KEY,
-	defaultHeaders: {
-		'HTTP-Referer': 'https://www.speaktoheaven.com',	
-		'X-Title': 'Speak to Heaven'	 	 	 	 	
-	}
+	defaultHeaders: { 'HTTP-Referer': 'https://www.speaktoheaven.com', 'X-Title': 'Speak to Heaven' }
 });
-
-//--------------------------------------------
-//	CHAT ROUTE (NOW DYNAMICALLY USES CHARACTER PROFILES)
-//--------------------------------------------
 
 app.get("/api/chat/history", async (req, res) => {
 	try {
@@ -404,13 +396,8 @@ app.get("/api/chat/history", async (req, res) => {
 		const token = authHeader && authHeader.split(" ")[1];
 		if (!token) return res.status(401).json({ error: "No token" });
 		const decoded = jwt.verify(token, SECRET_KEY);
-		const userId = decoded.id;
 		const { characterId } = req.query;
-
-		const history = await pool.query(
-			"SELECT * FROM messages WHERE user_id = $1 AND character_id = $2 ORDER BY created_at ASC LIMIT 50",
-			[userId, characterId]
-		);
+		const history = await pool.query("SELECT * FROM messages WHERE user_id = $1 AND character_id = $2 ORDER BY created_at ASC LIMIT 50", [decoded.id, characterId]);
 		res.json(history.rows);
 	} catch (err) {
 		res.status(500).json({ error: "Failed to load history" });
@@ -420,287 +407,64 @@ app.get("/api/chat/history", async (req, res) => {
 app.post("/api/chat", authenticateToken, async (req, res) => {
 	try {
 		const { characterId, message } = req.body;
-
-		if (!characterId || !message)
-			return res.status(400).json({ error: "Missing character or message" });
+		if (!characterId || !message) return res.status(400).json({ error: "Missing character or message" });
 
 		const character = biblicalProfiles.find(c => c.id === Number(characterId));
-		if (!character)
-			return res.status(400).json({ error: "Invalid character" });
+		if (!character) return res.status(400).json({ error: "Invalid character" });
 
-		const userId = req.user.id;
-
-// 🔒 Check user access and free message limit
-		const userResult = await pool.query(
-			"SELECT plan, lifetime, expires_at, messages_sent FROM users WHERE id = $1",
-			[userId]
-		);
+		const userResult = await pool.query("SELECT plan, lifetime, expires_at, messages_sent FROM users WHERE id = $1", [req.user.id]);
 		const userData = userResult.rows[0];
-
 		const isPaid = userData.lifetime || (userData.expires_at && new Date(userData.expires_at) > new Date());
 
-		// Only block if they are NOT paid AND their specific message counter is 3 or more.
-		// When they pay, the Webhook sets messages_sent back to 0, which unlocks this.
 		if (!isPaid && parseInt(userData.messages_sent) >= 3) {
-			return res.status(403).json({ 
-				error: "LIMIT_REACHED", 
-				message: "You have used your 3 free divine consultations. Please choose an offering to continue." 
-			});
+			return res.status(403).json({ error: "LIMIT_REACHED", message: "Limit reached. Please choose an offering." });
 		}
 
-		// Save user message
-		await pool.query(
-			`INSERT INTO messages (user_id, character_id, from_user, text)
-			 VALUES ($1, $2, true, $3)`,
-			[userId, characterId, message]
-		);
+		await pool.query(`INSERT INTO messages (user_id, character_id, from_user, text) VALUES ($1, $2, true, $3)`, [req.user.id, characterId, message]);
 
-		// Load chat history
-		const history = await pool.query(
-			`SELECT * FROM messages
-			 WHERE user_id = $1 AND character_id = $2
-			 ORDER BY created_at ASC
-			 LIMIT 20`,
-			[userId, characterId]
-		);
+		const history = await pool.query(`SELECT * FROM messages WHERE user_id = $1 AND character_id = $2 ORDER BY created_at ASC LIMIT 20`, [req.user.id, characterId]);
+		const chatHistory = history.rows.map(m => ({ role: m.from_user ? "user" : "assistant", content: m.text }));
 
-		const chatHistory = history.rows.map(m => ({
-			role: m.from_user ? "user" : "assistant",
-			content: m.text
-		}));
+		const systemPrompt = `You are ${character.name}, a biblical figure. ${character.description} RULES: Biblical tone, no AI mention, no modern tech.`;
 
-		// 🔑 NEW: Dynamically set the system prompt based on the character's description
-		const systemPrompt = `
-You are ${character.name}, a biblical figure.
-
-${character.description}
-
-RULES:
-- Speak in a biblical tone.
-- Do NOT say you are an AI.
-- Do NOT mention modern technology.
-- Stay fully in character as ${character.name}.
-- Speak with wisdom, authority, or humility appropriate to this figure.
-- Give spiritual and reflective answers.
-
-Remain in character at all times.
-`;
-
-		// Send to OpenRouter/OpenAI
 		const aiResponse = await openai.chat.completions.create({	
 			model: "openai/gpt-3.5-turbo",	
-			messages: [
-				{ role: "system", content: systemPrompt }, 
-				...chatHistory,
-				{ role: "user", content: message }
-			],
-			temperature: 0.7,
-			max_tokens: 400
+			messages: [{ role: "system", content: systemPrompt }, ...chatHistory, { role: "user", content: message }],
+			temperature: 0.7, max_tokens: 400
 		});
 
 		const reply = aiResponse.choices?.[0]?.message?.content;
-
-		// Save assistant reply
-		if (reply) {
-			await pool.query(
-				`INSERT INTO messages (user_id, character_id, from_user, text)
-				 VALUES ($1, $2, false, $3)`,
-				[userId, characterId, reply]
-			);
-		}
-
-// Increment free message counter
-				if (!isPaid) {
-			await pool.query("UPDATE users SET messages_sent = messages_sent + 1 WHERE id = $1", [userId]);
-		}
+		if (reply) await pool.query(`INSERT INTO messages (user_id, character_id, from_user, text) VALUES ($1, $2, false, $3)`, [req.user.id, characterId, reply]);
+		if (!isPaid) await pool.query("UPDATE users SET messages_sent = messages_sent + 1 WHERE id = $1", [req.user.id]);
 
 		res.json({ reply: reply || "(No response)" });
-
 	} catch (err) {
-		console.error("DEBUG ERROR:", err);
-		res.status(500).json({ error: "Server Error: " + (err.message || "Unknown") });
+		res.status(500).json({ error: "Server Error" });
 	}
 });
 
-//--------------------------------------------
-//	FETCH MESSAGES ROUTE
-//--------------------------------------------
-
 app.get("/api/messages/:characterId", authenticateToken, async (req, res) => {
 	try {
-		const { characterId } = req.params;
-
-		const result = await pool.query(
-			`SELECT * FROM messages
-			 WHERE user_id = $1 AND character_id = $2
-			 ORDER BY created_at ASC`,
-			[req.user.id, characterId]
-		);
-
+		const result = await pool.query(`SELECT * FROM messages WHERE user_id = $1 AND character_id = $2 ORDER BY created_at ASC`, [req.user.id, req.params.characterId]);
 		res.json(result.rows);
 	} catch (err) {
-		console.error("Fetch messages error:", err);
 		res.status(500).json({ error: "Server error" });
 	}
 });
 
 //--------------------------------------------
-// STRIPE WEBHOOK
+// SERVER PAGES / START
 //--------------------------------------------
 
-// UPDATED: Webhook to handle PaymentIntents and Plan persistence
-app.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
-    const sig = req.headers["stripe-signature"];
-    let event;
+app.get("/", (req, res) => { res.send(`<!DOCTYPE html><html><head><title>Speak To Heaven</title></head><body><h1>Speak To Heaven</h1></body></html>`); });
 
-    try {
-        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-    } catch (err) {
-        console.error("Webhook Signature Error:", err.message);
-        return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
+app.get("/privacy-policy", (req, res) => res.sendFile(path.join(__dirname, "public", "privacy-policy.html")));
+app.get("/terms", (req, res) => res.sendFile(path.join(__dirname, "public", "terms-and-conditions.html")));
 
-    async function applyPlan(plan, userId, email) {
-    let expiresAt = null;
-    let isLifetime = false;
-
-    if (plan === 'god' || plan === 'all') {
-    const date = new Date();
-    date.setDate(date.getDate() + 30);
-    expiresAt = date;
-    isLifetime = false;
-} else if (plan === 'lifetime') {
-    expiresAt = null;
-    isLifetime = true;
-}
-
-    try {
-        await pool.query(
-    "UPDATE users SET plan = $1, expires_at = $2, lifetime = $3, messages_sent = 0 WHERE email = $4",
-    [plan, expiresAt, isLifetime, email]
-);
-        console.log(`✅ Plan ${plan} applied to ${email || userId}`);
-    } catch (err) {
-        console.error("❌ Error applying plan:", err);
-    }
-}
-
-    // PaymentIntent flow (THIS is what checkout.html uses)
-    if (event.type === "payment_intent.succeeded") {
-        const paymentIntent = event.data.object;
-        const plan = paymentIntent.metadata && paymentIntent.metadata.plan;
-        const email = paymentIntent.metadata && paymentIntent.metadata.email;
-        const userId = Number(paymentIntent.metadata?.userId);
-
-        console.log("💳 payment_intent.succeeded", { plan, email, userId });
-
-        // Check if user exists. If not, create them.
-        const userCheck = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
-        
-        if (userCheck.rows.length === 0 && email) {
-            const tempPassword = crypto.randomBytes(8).toString('hex');
-            const hashed = await bcrypt.hash(tempPassword, 10);
-            
-            await pool.query(
-                "INSERT INTO users (email, password, plan, lifetime, messages_sent) VALUES ($1, $2, $3, $4, 0)",
-                [email, hashed, plan, plan === '4995']
-            );
-            console.log(`👤 Guest User Created: ${email}`);
-        }
-
-        await applyPlan(plan, userId, email);
-    }
-
-    // Checkout flow (if you ever use /api/create-checkout)
-    if (event.type === "checkout.session.completed") {
-        const session = event.data.object;
-        const plan = session.metadata && session.metadata.plan;
-        const email =
-            (session.metadata && session.metadata.email) ||
-            (session.customer_details && session.customer_details.email);
-        const userId = session.metadata && session.metadata.userId;
-
-        console.log("🔥 checkout.session.completed", { plan, email, userId });
-
-        await applyPlan(plan, userId, email);
-    }
-
-    res.json({ received: true });
-});
-
-app.get("/", (req, res) => {
-	res.send(`
-<!DOCTYPE html>
-<html>
-<head>
-<title>Speak To Heaven</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<style>
-body{
-font-family: Arial;
-background:#0f172a;
-color:white;
-text-align:center;
-padding:60px;
-}
-
-footer{
-margin-top:60px;
-opacity:.7;
-font-size:14px;
-}
-
-a{
-color:#60a5fa;
-text-decoration:none;
-margin:0 10px;
-}
-</style>
-</head>
-
-<body>
-
-<h1>Speak To Heaven</h1>
-
-<p>Your AI biblical conversation platform.</p>
-
-<footer>
-<a href="/privacy-policy.html">Privacy Policy</a> |
-<a href="/terms-and-conditions.html">Terms & Conditions</a>
-</footer>
-
-</body>
-</html>
-`);
-});
-
-//--------------------------------------------
-// LEGAL PAGES
-//--------------------------------------------
-
-app.get("/privacy-policy", (req, res) => {
-	res.sendFile(path.join(__dirname, "public", "privacy-policy.html"));
-});
-
-app.get("/terms", (req, res) => {
-	res.sendFile(path.join(__dirname, "public", "terms-and-conditions.html"));
-});
-//--------------------------------------------
-//	404 HANDLER
-//--------------------------------------------
-
-app.use((req, res) => {
-	res.status(404).json({ error: "Endpoint not found" });
-});
-
-//--------------------------------------------
-//	SERVER START
-//--------------------------------------------
+app.use((req, res) => res.status(404).json({ error: "Endpoint not found" }));
 
 app.listen(PORT, () => {
 	console.log("======================================");
-	console.log("📖 HOLY CHAT SERVER RUNNING");
 	console.log(`🌍 Port: ${PORT}`);
 	console.log("======================================");
 });
