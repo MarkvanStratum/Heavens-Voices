@@ -581,18 +581,10 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 }
 
     try {
-        if (userId) {
-            await pool.query(
-                "UPDATE users SET plan = $1, expires_at = $2, lifetime = $3, messages_sent = 0 WHERE id = $4",
-                [plan, expiresAt, isLifetime, userId]
-            );
-        } else if (email) {
-            // Fix for the database query: using email to find user
-            await pool.query(
-                "UPDATE users SET plan = $1, expires_at = $2, lifetime = $3, messages_sent = 0 WHERE email = $4",
-                [plan, expiresAt, isLifetime, email]
-            );
-        }
+        await pool.query(
+    "UPDATE users SET plan = $1, expires_at = $2, lifetime = $3, messages_sent = 0 WHERE email = $4",
+    [plan, expiresAt, isLifetime, email]
+);
         console.log(`✅ Plan ${plan} applied to ${email || userId}`);
     } catch (err) {
         console.error("❌ Error applying plan:", err);
