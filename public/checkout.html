@@ -39,7 +39,7 @@
 
     <script>
         // Use your Public Key here
-        const stripe = Stripe('pk_live_51T3DMAAC1AZtWXWqdUQpq4e708hWDC8eixOTIwLOlR7IIF60tiyLEum1CxQiwVbPECrKV8VoHwZfFmTDTpRiqsU300dIpubyaT');
+        const stripe = Stripe('pk_live_51TEQzRRwoTkydCMoKlhlp6CF2lQw0YF9QFNoOhLNbsSfbXLq9QDc0lzqRRUaf1fXQjiHrPKey9M76uZBKPjAfHvf00YtU1Gfec');
         
         const params = new URLSearchParams(window.location.search);
         const plan = params.get('plan') || 'god';
@@ -93,12 +93,7 @@
             }
         });
 
-        if (!token) {
-            alert("Please sign in first.");
-            window.location.href = "/";
-        } else {
-            initialize();
-        }
+        initialize();
     </script>
 </body>
 </html>
