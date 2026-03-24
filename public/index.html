@@ -351,17 +351,20 @@ footer {
     }
 
     $("tabLogin").onclick = () => {
-      $("tabLogin").classList.add("active");
-      $("tabRegister").classList.remove("active");
-      $("loginPane").classList.remove("hide");
-      $("registerPane").classList.add("hide");
-    };
-    $("tabRegister").onclick = () => {
-      $("tabRegister").classList.add("active");
-      $("tabLogin").classList.remove("active");
-      $("registerPane").classList.remove("hide");
-      $("loginPane").classList.add("hide");
-    };
+  $("tabLogin").classList.add("active");
+  $("tabRegister").classList.remove("active");
+
+  $("loginPane").style.display = "block";
+  $("registerPane").style.display = "none";
+};
+
+$("tabRegister").onclick = () => {
+  $("tabRegister").classList.add("active");
+  $("tabLogin").classList.remove("active");
+
+  $("registerPane").style.display = "block";
+  $("loginPane").style.display = "none";
+};
 
     async function loadProfiles() {
       try {
@@ -502,17 +505,25 @@ $("chatLog").innerHTML = "";
     };
 
     function setLoggedInUI(isLoggedIn) {
-      if (isLoggedIn) {
-document.body.classList.add("logged-in");
-        $("authSection").classList.add("hide");
-        $("logoutBtn").style.display = "block";
-        $("heroText").innerHTML = "<h2>Welcome Back, Seeker</h2><p>Continue your sacred dialogue below.</p>";
-        if (selectedId) {
-          $("chatInput").disabled = false;
-          $("sendBtn").disabled = false;
-        }
-      }
+  if (isLoggedIn) {
+    document.body.classList.add("logged-in");
+
+    const auth = $("authSection");
+    if (auth) {
+      auth.style.display = "none";
     }
+
+    $("logoutBtn").style.display = "block";
+
+    $("heroText").innerHTML =
+      "<h2>Welcome Back, Seeker</h2><p>Continue your sacred dialogue below.</p>";
+
+    if (selectedId) {
+      $("chatInput").disabled = false;
+      $("sendBtn").disabled = false;
+    }
+  }
+}
 
     $("sendBtn").onclick = async () => {
       const text = $("chatInput").value;
@@ -585,6 +596,8 @@ if (!getToken()) {
     };
 
     window.onload = () => { 
+$("loginPane").style.display = "block";
+$("registerPane").style.display = "none";
 $("buyGodBtn").onclick = () => { window.location.href = "/register.html"; };
 $("buyAllBtn").onclick = () => { window.location.href = "/register.html"; };
 $("buyLifeBtn").onclick = () => { window.location.href = "/register.html"; };
