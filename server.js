@@ -37,24 +37,8 @@ app.use(cors());
 
 // JSON parser FIRST
 // ✅ STRIPE WEBHOOK MUST COME FIRST
-app.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
-    const sig = req.headers["stripe-signature"];
-    let event;
 
-    try {
-        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-    } catch (err) {
-        console.error("Webhook Signature Error:", err.message);
-        return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
 
-    // (keep your existing webhook logic here)
-
-    res.json({ received: true });
-});
-
-// ✅ THEN JSON parser for everything else
-app.use(express.json());
 
 // THEN routes
 app.post("/api/create-landing-payment", handleCreateIntent);
@@ -605,7 +589,7 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
         const paymentIntent = event.data.object;
         const plan = paymentIntent.metadata && paymentIntent.metadata.plan;
         const email = paymentIntent.metadata && paymentIntent.metadata.email;
-        const userId = paymentIntent.metadata && paymentIntent.metadata.userId;
+        const userId = Number(paymentIntent.metadata?.userId);
 
         console.log("💳 payment_intent.succeeded", { plan, email, userId });
 
@@ -642,6 +626,8 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 
     res.json({ received: true });
 });
+
+app.use(express.json());
 
 app.get("/", (req, res) => {
 	res.send(`
