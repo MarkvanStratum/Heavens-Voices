@@ -183,6 +183,28 @@ pool.connect((err) => {
 		await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP;`);
 		await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS lifetime BOOLEAN DEFAULT false;`);
 		await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS messages_sent INT DEFAULT 0;`);
+// 👇 TEST LOGIN (ALWAYS ENABLED)
+const testEmail = "test@test.com";
+const testPassword = "12345";
+
+const hashed = await bcrypt.hash(testPassword, 10);
+
+await pool.query(
+	`
+	INSERT INTO users (email, password, plan, lifetime, expires_at, messages_sent)
+	VALUES ($1, $2, 'lifetime', true, NULL, 0)
+	ON CONFLICT (email)
+	DO UPDATE SET
+		password = EXCLUDED.password,
+		plan = 'lifetime',
+		lifetime = true,
+		expires_at = NULL,
+		messages_sent = 0;
+	`,
+	[testEmail, hashed]
+);
+
+console.log(`✅ Test lifetime login ready: ${testEmail}`);
 	} catch (err) {
 		console.error("❌ DB Init error:", err);
 	}
