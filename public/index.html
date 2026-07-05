@@ -3,662 +3,319 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Heaven's Voices — Biblical AI Chat</title>
+  <title>Heavens Voices — Biblical AI Chat</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 
   <style>
-:root {
-  --bg1: #fdfcfb;
-  --bg2: #f3f7ff;
-  --accent1: #6ea8ff;
-  --accent2: #f7c873;
-  --accent3: #b28cff;
-  --text-main: #2d2a26;
-  --text-muted: #7e786f;
-  --radius: 16px;
-}
+    :root {
+      --bg-heaven: #fdfcfb; 
+      --marble: #ffffff;
+      --gold-divine: #c5a059;
+      --blue-saint: #2c3e50;
+      --text-main: #33302c;
+      --text-muted: #8a8276;
+      --border-holy: rgba(197, 160, 89, 0.25);
+      --radius: 12px;
+      --divine-shadow: 0 15px 50px rgba(0,0,0,0.04);
+    }
 
-* { box-sizing: border-box; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--text-main); background-color: var(--bg-heaven); font-family: "EB Garamond", serif; font-size: 19px; line-height: 1.7; }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 0px 20px 40px; }
+    body.logged-in .wrap { max-width: none; width: 100%; padding: 0 10px 20px; }
 
-body {
-  margin: 0;
-  font-family: "EB Garamond", serif;
-  color: var(--text-main);
-  background: linear-gradient(120deg, var(--bg1), var(--bg2));
-  background-size: 200% 200%;
-  animation: bgMove 12s ease infinite;
-}
+    header { display: flex; align-items: center; justify-content: space-between; padding: 20px 0; border-bottom: 1px solid var(--border-holy); margin-bottom: 40px; }
+    .brand { display: flex; align-items: center; gap: 15px; }
+    .logo { width: 50px; height: 50px; background: white; border: 1.5px solid var(--gold-divine); border-radius: 50%; display: grid; place-items: center; font-family: "Cinzel", serif; color: var(--gold-divine); font-size: 22px; }
+    
+    .grid { display: grid; grid-template-columns: 1fr 1.3fr; gap: 40px; }
+    body.logged-in .grid { grid-template-columns: 1fr; gap: 0; }
 
-/* 🌈 subtle animated background */
-@keyframes bgMove {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
+    .card { background: var(--marble); border: 1px solid var(--border-holy); border-radius: var(--radius); box-shadow: var(--divine-shadow); overflow: hidden; }
+    .tabs { display: flex; background: #f8f8f8; cursor: pointer; border-bottom: 1px solid var(--border-holy); }
+    .tab { flex: 1; padding: 15px; text-align: center; font-family: "Cinzel", serif; color: var(--text-muted); font-size: 14px; }
+    .tab.active { background: white; color: var(--gold-divine); border-top: 2px solid var(--gold-divine); }
 
-/* layout */
-.wrap {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px 80px;
-}
+    input, textarea { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #ddd; font-family: inherit; font-size: 16px; }
+    .btn { padding: 14px 28px; border-radius: 6px; font-family: "Cinzel", serif; cursor: pointer; border: 1px solid var(--gold-divine); background: transparent; color: var(--gold-divine); text-transform: uppercase; letter-spacing: 1px; width: 100%; }
+    .btn.primary { background: var(--gold-divine); color: white; border: none; }
 
-/* header */
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px 0;
-}
-
-/* logo with glow pulse */
-.logo {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
+    .chat-shell {
   display: grid;
-  place-items: center;
-  font-family: "Cinzel";
-  font-size: 22px;
-  color: white;
-  background: linear-gradient(135deg, var(--accent1), var(--accent3));
-  animation: pulse 3s infinite;
-}
-
-@keyframes pulse {
-  0% { box-shadow: 0 0 0px rgba(110,168,255,0.4); }
-  50% { box-shadow: 0 0 20px rgba(110,168,255,0.6); }
-  100% { box-shadow: 0 0 0px rgba(110,168,255,0.4); }
-}
-
-/* hero */
-.proclamation h2 {
-  font-family: "Cinzel";
-  font-size: 44px;
-  background: linear-gradient(90deg, var(--accent1), var(--accent3));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.proclamation p {
-  color: var(--text-muted);
-}
-
-/* grid */
-.grid {
-  display: grid;
-  grid-template-columns: 1fr 1.3fr;
-  gap: 40px;
-}
-
-@media (max-width: 950px) {
-  .grid { grid-template-columns: 1fr !important; }
-}
-
-/* cards */
-.card {
-  background: white;
-  border-radius: var(--radius);
-  padding: 0;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
-}
-
-.card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 18px 40px rgba(0,0,0,0.12);
-}
-
-/* inputs */
-input, textarea {
-  width: 100%;
-  border-radius: 12px;
-  border: 1px solid #e3e3e3;
-  padding: 12px;
-  font-family: inherit;
-}
-
-input:focus, textarea:focus {
-  outline: none;
-  border-color: var(--accent1);
-  box-shadow: 0 0 0 2px rgba(110,168,255,0.2);
-}
-
-/* buttons */
-.btn {
-  border-radius: 12px;
-  border: none;
-  font-family: "Cinzel";
-  padding: 14px;
-  cursor: pointer;
-  background: linear-gradient(135deg, #eaeaea, #ffffff);
-  transition: all 0.2s ease;
-}
-
-.btn:hover {
-  transform: scale(1.03);
-}
-
-.btn.primary {
-  background: linear-gradient(135deg, var(--accent1), var(--accent3));
-  color: white;
-}
-
-.btn.primary:hover {
-  transform: scale(1.05);
-}
-
-/* tabs */
-.tabs {
-  display: flex;
-}
-
-.tab {
-  flex: 1;
-  padding: 14px;
-  text-align: center;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-.tab.active {
-  color: var(--accent1);
-  border-bottom: 3px solid var(--accent1);
-}
-
-/* sidebar */
-.sidebar {
-  background: #fafbff;
-  padding: 20px;
-}
-
-.pitem {
-  padding: 14px;
-  margin-bottom: 10px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  background: white;
-}
-
-.pitem:hover {
-  transform: translateX(4px);
-  background: linear-gradient(90deg, #ffffff, #f3f7ff);
-}
-
-.pitem.active {
-  background: linear-gradient(135deg, var(--accent1), var(--accent3));
-  color: white;
-}
-
-/* chat */
-.chat-log {
-  padding: 25px;
-  background: linear-gradient(180deg, #ffffff, #f7faff);
-}
-
-/* bubbles with pop-in animation */
-.bubble {
-  padding: 14px 18px;
-  border-radius: 18px;
-  max-width: 85%;
-  animation: popIn 0.25s ease;
-}
-
-@keyframes popIn {
-  from {
-    transform: scale(0.9);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-.bubble.them {
-  background: #f1f5ff;
-}
-
-.bubble.me {
-  background: linear-gradient(135deg, var(--accent1), var(--accent3));
-  color: white;
-}
-
-/* chat title */
-#chatTitle {
-  font-family: "Cinzel";
-}
-
-/* footer */
-footer {
-  border-top: 1px solid #eee;
-  color: var(--text-muted);
-}
-
-/* modal glow */
-#limitModal .card {
-  border-radius: 20px;
-  animation: popIn 0.3s ease;
-}
-/* 🔥 MAKE CHAT FULL SCREEN WHEN LOGGED IN */
-
-body.logged-in .wrap {
-  max-width: none;
-  width: 100%;
-  padding: 0 10px 40px;
-}
-
-body.logged-in #mainGrid {
-  grid-template-columns: 1fr;
-  gap: 0;
-}
-
-body.logged-in #chatCard {
-  width: 100%;
-  height: calc(100vh - 120px);
+  grid-template-columns: 280px minmax(0, 1fr);
+  height: 600px;
+  min-height: 0;
 }
 
 body.logged-in .chat-shell {
-  height: calc(100vh - 120px);
-  grid-template-columns: 280px 1fr;
+  height: calc(100vh - 140px);
+  min-height: 0;
 }
 
-body.logged-in .chat-log {
+.chat-shell > div:last-child {
+  min-height: 0;
+}
+
+.chat-log {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
-</style>
+    .sidebar { background: #faf9f7; border-right: 1px solid var(--border-holy); padding: 15px; overflow-y: auto; }
+    
+    .pitem { display: flex; align-items: center; padding: 15px; margin-bottom: 10px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; background: white; font-family: "Cinzel", serif; font-size: 16px; }
+    .pitem.active { border-color: var(--gold-divine); background: #fffdf9; color: var(--gold-divine); }
+    
+    .chat-log {
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  background: #fff;
+  scroll-behavior: smooth;
+}
+    .bubble { padding: 14px 18px; border-radius: 18px; max-width: 85%; font-size: 17px; word-wrap: break-word; }
+    .bubble.them { background: #f8f6f2; align-self: flex-start; }
+    .bubble.me { background: var(--blue-saint); color: white; align-self: flex-end; }
+    .hide { display: none !important; }
+
+    footer { margin-top: 40px; padding: 30px 20px; border-top: 1px solid var(--border-holy); text-align: center; }
+    .footer-links { margin-bottom: 20px; }
+    .footer-links a { color: var(--text-muted); text-decoration: none; margin: 0 15px; font-size: 15px; font-family: "EB Garamond", serif; }
+    .footer-links a:hover { color: var(--gold-divine); }
+    .payment-icons { display: flex; justify-content: center; gap: 15px; align-items: center; opacity: 0.7; }
+    .payment-icons img { height: 24px; filter: grayscale(1); }
+
+.limit-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.limit-modal.show { display: flex; }
+
+.limit-box {
+  background: white;
+  max-width: 460px;
+  width: 100%;
+  padding: 35px;
+  border-radius: 16px;
+  text-align: center;
+  border: 1px solid var(--border-holy);
+  box-shadow: 0 20px 70px rgba(0,0,0,.2);
+}
+
+.limit-box h2 {
+  font-family: "Cinzel", serif;
+  color: var(--blue-saint);
+  margin-top: 0;
+}
+
+.limit-box p {
+  color: var(--text-muted);
+  font-size: 18px;
+}
+  </style>
 </head>
 
 <body>
   <div class="wrap">
     <header>
-      <div class="brand">
-        <div class="logo">†</div>
-        <h1>Heaven's Voices</h1>
-      </div>
-      <div>
-        <button class="btn" id="logoutBtn" style="display:none; width: auto;">Leave the Sanctuary</button>
-      </div>
+      <div class="brand"><div class="logo">S</div><h1>Heavens Voices</h1></div>
+      <button class="btn" id="logoutBtn" style="display:none; width: auto;">Exit</button>
     </header>
 
-    <section class="proclamation" id="heroText">
-      <h2>Hear the Voices of Heaven</h2>
-      <p>A sacred dialogue awaits. Seek timeless wisdom from the Prophets and the Divine to guide your spirit.</p>
-    </section>
-
-    <div class="grid" id="mainGrid">
+    <div class="grid">
       <div class="stack" id="authSection">
         <div class="card" style="margin-bottom: 30px;">
-          <div class="tabs">
-            <div class="tab active" id="tabLogin">Sign In</div>
-            <div class="tab" id="tabRegister">New Account</div>
-          </div>
+          <div class="tabs"><div class="tab active" id="tabLogin">Sign In</div><div class="tab" id="tabRegister">New Account</div></div>
           <div style="padding: 30px;">
-            <div id="loginPane">
-              <input id="loginEmail" type="email" placeholder="Email Address" />
-              <input id="loginPassword" type="password" placeholder="Password" />
-              <button class="btn primary" id="loginBtn">Enter the Sanctuary</button>
-            </div>
-            <div id="registerPane" class="hide">
-              <input id="regEmail" type="email" placeholder="Email Address" />
-              <input id="regPassword" type="password" placeholder="Choose Password" />
-              <button class="btn primary" id="registerBtn">Begin Your Journey</button>
-            </div>
+            <div id="loginPane"><input id="loginEmail" type="email" placeholder="Email"><input id="loginPassword" type="password" placeholder="Password"><button class="btn primary" id="loginBtn">Enter</button></div>
+            <div id="registerPane" class="hide"><input id="regEmail" type="email" placeholder="Email"><input id="regPassword" type="password" placeholder="Password"><button class="btn primary" id="registerBtn">Create Account</button></div>
           </div>
-        </div>
+                </div>
 
-        <div class="card" style="padding: 25px;">
-          <h4 style="font-family: Cinzel; color: var(--gold-divine); margin: 0 0 15px;">Offerings</h4>
-          <button class="btn" id="buyGodBtn" style="margin-bottom: 10px;">God Access ($29.95)</button>
-          <button class="btn" id="buyAllBtn" style="margin-bottom: 10px;">Full Access ($35.95)</button>
-          <button class="btn primary" id="buyLifeBtn">Lifetime Access ($49.95)</button>
+        <div class="card" style="padding: 30px;">
+          <h4 style="font-family: Cinzel; color: var(--gold-divine);">
+            Divine Offerings
+          </h4>
+
+          <p style="font-size:15px; line-height:1.5; color:var(--text-muted); margin-top:0;">
+            SpeakToHeaven.com is an AI chat website. Conversations are simulated and are not real communications with God, biblical figures, living people, or deceased persons.
+          </p>
+
+          <button class="btn" onclick="goToPricing()">
+            God Access (£29.95)
+          </button>
+
+          <button class="btn" onclick="goToPricing()" style="margin-top:10px;">
+            Full Divine Access (£39.95)
+          </button>
+
+          <button class="btn primary" onclick="goToPricing()" style="margin-top:10px;">
+            3 month full Access (£49.95)
+          </button>
         </div>
       </div>
 
       <div class="card" id="chatCard">
         <div class="chat-shell">
           <div class="sidebar" id="profiles"></div>
-          <div style="display: flex; flex-direction: column; height: 100%; min-height: 0;">
-            <div style="padding: 20px; border-bottom: 1px solid var(--border-holy); display: flex; align-items: center; gap: 15px;">
-              <img id="chatAvatar" src="" alt="" style="width: 70px; height: 70px; border-radius: 50%; border: 2px solid var(--gold-divine); object-fit: cover; display: none;">
-              <div id="chatTitle" style="font-family: Cinzel; color: var(--blue-saint);">Select a Voice</div>
-            </div>
-            <div class="chat-log" id="chatLog">
-              <div id="welcomeMessage" style="text-align: center; color: var(--text-muted); font-style: italic; margin-top: 100px;">Please sign in and select a holy figure.</div>
-            </div>
+          <div style="display: flex; flex-direction: column; height: 100%;">
+            <div style="padding: 20px; border-bottom: 1px solid var(--border-holy); font-family: Cinzel;" id="chatTitle">Select a Character</div>
+            <div class="chat-log" id="chatLog"></div>
             <div style="padding: 20px; border-top: 1px solid var(--border-holy); display: flex; gap: 12px; background: white;">
-              <textarea id="chatInput" placeholder="Your question..." disabled style="flex:1; border: 1px solid #e0ddd5; border-radius: 8px; padding: 10px; resize: none;"></textarea>
+              <textarea id="chatInput" placeholder="Write your message..." disabled style="flex:1; height: 60px; resize: none;"></textarea>
               <button class="btn primary" id="sendBtn" disabled style="width: auto;">Send</button>
             </div>
           </div>
         </div>
       </div>
     </div>
+
+    <footer>
+  <div class="footer-links">
+    <a href="/contact.html">Contact</a>
+    <a href="/terms">Terms & Conditions</a>
+    <a href="/privacy-policy">Privacy Policy</a>
+    <a href="/refund-policy.html">Refund Policy</a>
   </div>
 
+  <div style="margin-top:20px; color:#8a8276; font-size:14px; line-height:1.6;">
+    <strong>RIDGWELL SERVICES LIMITED</strong><br>
+    85 Great Portland Street, First Floor,<br>
+    London, England, W1W 7LT
+  </div>
+
+  <div class="payment-icons" style="margin-top:20px;">
+    <img src="https://logos-world.net/wp-content/uploads/2020/04/Visa-Symbol.png" alt="Visa">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard">
+  </div>
+</footer>
+  </div>
+
+<div class="limit-modal" id="limitModal">
+  <div class="limit-box">
+    <h2>Your Free Messages Are Complete</h2>
+    <p>
+      You have used your 3 free messages. Please select a plan to continue
+      your conversations with Heavens Voices.
+    </p>
+    <button class="btn primary" onclick="window.location.href='/pricing.html'">
+      Select Your Plan
+    </button>
+    <button class="btn" style="margin-top:12px;" onclick="closeLimitModal()">
+      Not Now
+    </button>
+  </div>
+</div>
+
   <script>
+
+function showLimitModal() {
+  $("limitModal").classList.add("show");
+  $("chatInput").disabled = true;
+  $("sendBtn").disabled = true;
+}
+
+function closeLimitModal() {
+  $("limitModal").classList.remove("show");
+}
     const $ = (id) => document.getElementById(id);
     let selectedId = null;
-    let guestTeaserUsed = false;
 
-    // Use empty string to make requests relative to the current host/port
-    const API_BASE = "";
-// If your frontend is NOT served by the same Express server as /api/*, set this to your backend base URL, e.g.
-// const API_BASE = "http://localhost:10000";
-// const API_BASE = "https://your-backend-domain.com";
+    function getToken() { return localStorage.getItem("jwt"); }
 
-    const profileImages = {
-  "God": "god.jpg",
-  "Jesus Christ": "jesus.jpg",
-  "Holy Spirit": "holyspirit.jpg",
-  "Mary": "mary.jpg",
-  "Moses": "moses.jpg",
-  "Eve": "eve.jpg",
-  "King David": "david.jpg",
-  "Isaiah": "isaiah.jpg",
-  "Daniel": "daniel.jpg",
-  "John": "john.jpg",
-  "Paul": "paul.jpg",
-  "Peter": "peter.jpg"
-};
+    async function sendMessage() {
+      const text = $("chatInput").value.trim();
+      if (!text || !selectedId) return;
+      appendMessage("me", text);
+      $("chatInput").value = "";
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${getToken()}` },
+        body: JSON.stringify({ characterId: selectedId, message: text })
+      });
+      if (res.status === 403) {
+  const data = await res.json().catch(() => ({}));
 
-    function getToken() { return localStorage.getItem("jwt") || ""; }
-    function setToken(t) { localStorage.setItem("jwt", t); }
+  if (data.error === "LIMIT_REACHED") {
+    showLimitModal();
+    return;
+  }
 
-    function authHeaders() {
-      return {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${getToken()}`
-      };
-    }
-
-    $("tabLogin").onclick = () => {
-  $("tabLogin").classList.add("active");
-  $("tabRegister").classList.remove("active");
-
-  $("loginPane").style.display = "block";
-  $("registerPane").style.display = "none";
-};
-
-$("tabRegister").onclick = () => {
-  $("tabRegister").classList.add("active");
-  $("tabLogin").classList.remove("active");
-
-  $("registerPane").style.display = "block";
-  $("loginPane").style.display = "none";
-};
-
-    async function loadProfiles() {
-      try {
-        const res = await fetch(`${API_BASE}/api/profiles`);
-        if (!res.ok) throw new Error("Connection failed");
-        const profiles = await res.json();
-        const container = $("profiles");
-        container.innerHTML = "";
-        profiles.forEach(p => {
-          const div = document.createElement("div");
-          div.className = "pitem";
-          div.innerHTML = `<strong>${p.name}</strong>`;
-          div.onclick = () => selectProfile(p, div);
-          container.appendChild(div);
-        });
-      } catch (e) {
-        console.error("Failed to load profiles", e);
-      }
-    }
-
-    function selectProfile(p, el) {
-      document.querySelectorAll(".pitem").forEach(i => i.classList.remove("active"));
-      el.classList.add("active");
-      selectedId = p.id;
-      $("chatTitle").innerText = p.name;
-      const wm = $("welcomeMessage");
-if (wm) wm.style.display = "none";
-$("chatLog").innerHTML = "";
-      const avatar = $("chatAvatar");
-
-avatar.src = p.image + "?t=" + Date.now();
-avatar.style.display = "block";
-      
-      if (getToken() || !guestTeaserUsed) {
-        $("chatInput").disabled = false;
-        $("sendBtn").disabled = false;
-      }
-      if (getToken()) {
-  loadHistory(p.id);
-} else {
-  appendMessage("them", `I am ${p.name}. What seeks your heart?`);
-}
-    }
-
-    async function loadHistory(characterId) {
-      if (!characterId) return;
-      try {
-        const res = await fetch(`${API_BASE}/api/chat/history?characterId=${characterId}`, {
-  headers: getToken() ? authHeaders() : {}
-        });
-        if (!res.ok) {
-  alert("Error loading chat history (" + res.status + ")");
+  alert(data.message || "Access denied.");
   return;
 }
-        const history = await res.json();
-$("chatLog").innerHTML = "";
-        history.forEach(m => {
-          appendMessage(m.from_user ? "me" : "them", m.text);
-        });
-      } catch(e) {}
+      const data = await res.json();
+      if (data.reply) appendMessage("them", data.reply);
     }
 
     function appendMessage(side, text) {
       const div = document.createElement("div");
       div.className = `bubble ${side}`;
       div.innerText = text;
-      $("chatLog").appendChild(div);
-      $("chatLog").scrollTo({ top: $("chatLog").scrollHeight, behavior: 'smooth' });
+      const log = $("chatLog");
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
     }
 
-    $("registerBtn").onclick = async () => {
-      const email = $("regEmail").value;
-      const password = $("regPassword").value;
-      if(!email || !password) return alert("Please fill all fields.");
+    async function loadProfiles() {
+      const res = await fetch("/api/profiles");
+      const profiles = await res.json();
+      profiles.forEach(p => {
+        const div = document.createElement("div");
+        div.className = "pitem"; 
+        div.innerHTML = `<span>${p.name}</span>`;
+        div.onclick = () => {
+          document.querySelectorAll(".pitem").forEach(i => i.classList.remove("active"));
+          div.classList.add("active");
+          selectedId = p.id;
+          $("chatTitle").innerText = p.name;
+          $("chatLog").innerHTML = `<div class="bubble them">I am ${p.name}. How can I guide you?</div>`;
+          if (getToken()) { $("chatInput").disabled = false; $("sendBtn").disabled = false; $("chatInput").focus(); }
+        };
+        $("profiles").appendChild(div);
+      });
+    }
 
-      try {
-        const res = await fetch(`${API_BASE}/api/register`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password })
-        });
-        const data = await res.json();
-        if (res.ok) {
-          alert("Your account has been created. Please Sign In.");
-          $("tabLogin").click();
-        } else {
-          alert(data.error || "Registration failed.");
-        }
-      } catch (e) {
-        alert("Server connection failed.");
-      }
-    };
+    $("logoutBtn").onclick = () => { localStorage.removeItem("jwt"); location.reload(); };
+    $("sendBtn").onclick = sendMessage;
+    $("chatInput").onkeypress = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
 
     $("loginBtn").onclick = async () => {
-  const email = $("loginEmail").value.trim().toLowerCase();
-  const password = $("loginPassword").value;
+      const res = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: $("loginEmail").value, password: $("loginPassword").value }) });
+      if (res.ok) { const d = await res.json(); localStorage.setItem("jwt", d.token); location.reload(); } else { alert("Login failed."); }
+    };
 
-  if (!email || !password) {
-    alert("Please enter email and password.");
+    $("registerBtn").onclick = async () => {
+      const res = await fetch("/api/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: $("regEmail").value, password: $("regPassword").value }) });
+      if (res.ok) { alert("Success. Please sign in."); $("tabLogin").click(); }
+    };
+
+    $("tabLogin").onclick = () => { $("tabLogin").className="tab active"; $("tabRegister").className="tab"; $("loginPane").classList.remove("hide"); $("registerPane").classList.add("hide"); };
+    $("tabRegister").onclick = () => { $("tabRegister").className="tab active"; $("tabLogin").className="tab"; $("registerPane").classList.remove("hide"); $("loginPane").classList.add("hide"); };
+
+function goToPricing() {
+  if (!getToken()) {
+    alert("Please create an account or sign in before selecting a plan.");
     return;
   }
 
-  try {
-    const res = await fetch(`${API_BASE}/api/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
-    });
-
-    const raw = await res.text();        // READ RAW TEXT FIRST
-    let data = {};
-    try { data = JSON.parse(raw); } catch {}
-
-    if (!res.ok) {
-      alert(data.error || `Login failed (${res.status}). Response: ${raw.slice(0, 140)}`);
-      return;
-    }
-
-    if (!data.token) {
-      alert(`Login failed: no token returned. Response: ${raw.slice(0, 140)}`);
-      return;
-    }
-
-    setToken(data.token);
-    setLoggedInUI(true);
-    window.location.reload();
-
-  } catch (err) {
-    console.error(err);
-    alert("Server connection failed.");
-  }
-};
-   
-
-    $("logoutBtn").onclick = () => {
-      localStorage.removeItem("jwt");
-      location.reload();
-    };
-
-    function setLoggedInUI(isLoggedIn) {
-  if (isLoggedIn) {
-    document.body.classList.add("logged-in");
-
-    const auth = $("authSection");
-    if (auth) {
-      auth.style.display = "none";
-    }
-
-    $("logoutBtn").style.display = "block";
-
-    $("heroText").innerHTML =
-      "<h2>Welcome Back, Seeker</h2><p>Continue your sacred dialogue below.</p>";
-
-    if (selectedId) {
-      $("chatInput").disabled = false;
-      $("sendBtn").disabled = false;
-    }
-  }
+  window.location.href = "/pricing.html";
 }
-
-    $("sendBtn").onclick = async () => {
-      const text = $("chatInput").value;
-      if (!text || !selectedId) return;
-
-      appendMessage("me", text);
-// 🔴 FREE MODE (NOT LOGGED IN)
-if (!getToken()) {
-
-  let name = $("chatTitle").innerText;
-
-  let reply = "";
-
-  if (name.includes("God")) {
-    reply = "I am the Alpha and the Omega, the beginning and the end. I know your heart before you speak.";
-  } 
-  else if (name.includes("Jesus")) {
-    reply = "Peace be with you. Come to me with your burdens, and I will give you rest.";
-  } 
-  else if (name.includes("Holy Spirit")) {
-    reply = "I am the Comforter, the Spirit of truth. I guide those who listen.";
-  } 
-  else if (name.includes("Mary")) {
-    reply = "My child, walk in humility and trust in the Lord with all your heart.";
-  } 
-  else if (name.includes("Moses")) {
-    reply = "I have walked through the wilderness with God. Trust Him, even when the path is unclear.";
-  } 
-  else if (name.includes("David")) {
-    reply = "The Lord is my shepherd; I shall not want. Seek Him, and He will guide you.";
-  } 
-  else {
-    reply = "Seek wisdom and you shall find it.";
-  }
-
-  appendMessage("them",
-    reply +
-    "\n\nTo continue this sacred conversation, you must create an account and enter the sanctuary."
-  );
-
-  $("chatInput").disabled = true;
-  $("sendBtn").disabled = true;
-
-  return; // 🔴 IMPORTANT
-}
-
-      $("chatInput").value = "";
-
-      try {
-        const res = await fetch(`${API_BASE}/api/chat`, {
-          method: "POST",
-          headers: authHeaders(),
-          body: JSON.stringify({ characterId: selectedId, message: text })
-        });
-        const data = await res.json();
-
-        if (res.ok) {
-          appendMessage("them", data.reply);
-          if (!getToken()) guestTeaserUsed = true;
-        } else if (res.status === 403 && data.error === "LIMIT_REACHED") {
-            const modal = $("limitModal");
-            modal.style.display = "flex";
-            modal.style.pointerEvents = "auto";
-        } else {
-          alert(data.error || "Message failed.");
-        }
-      } catch(e) {
-        alert("The connection to the heavens was interrupted.");
-      }
-    };
-
-    window.onload = () => { 
-$("loginPane").style.display = "block";
-$("registerPane").style.display = "none";
-$("buyGodBtn").onclick = () => { window.location.href = "/register.html"; };
-$("buyAllBtn").onclick = () => { window.location.href = "/register.html"; };
-$("buyLifeBtn").onclick = () => { window.location.href = "/register.html"; };
-      loadProfiles(); 
-      if (getToken()) setLoggedInUI(true); 
-    };
+    if (getToken()) { document.body.classList.add("logged-in"); $("authSection").classList.add("hide"); $("logoutBtn").style.display = "block"; }
+    loadProfiles();
   </script>
-
-  <div id="limitModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(5px);">
-    <div class="card" style="max-width: 450px; width: 90%; padding: 40px; text-align: center; border: 2px solid var(--gold-divine); background: white;">
-      <div class="logo" style="margin: 0 auto 20px;">†</div>
-      <h3 style="font-family: Cinzel; color: var(--blue-saint); font-size: 24px; margin-bottom: 15px;">A Moment of Reflection</h3>
-      <p style="color: var(--text-muted); font-style: italic; margin-bottom: 30px;">Your free consultations have reached their limit. To continue your spiritual journey, please consider a sacred offering.</p>
-      <button class="btn primary" onclick="window.location.href='/pricing.html'">View Sacred Offerings</button>
-      <button class="btn" style="border:none; margin-top:15px;" onclick="$('limitModal').style.display='none'; $('limitModal').style.pointerEvents='none';">Dismiss</button>
-    </div>
-  </div>
-<footer style="
-margin-top:40px;
-padding:20px;
-text-align:center;
-font-size:14px;
-color:#8a8276;
-border-top:1px solid rgba(197,160,89,0.25);
-">
-
-<a href="/privacy-policy.html" style="color:#8a8276;margin-right:20px;">
-Privacy Policy
-</a>
-
-<a href="/terms-and-conditions.html" style="color:#8a8276;">
-Terms & Conditions
-</a>
-
-</footer>
 </body>
 </html>
