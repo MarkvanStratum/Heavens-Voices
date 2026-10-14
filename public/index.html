@@ -2354,11 +2354,10 @@ function closeLimitModal() {
   $("sendBtn").disabled = false;
 }
 
-    function requireLogin() {
-      if (getToken()) return false;
-      window.location.href = "/login.html";
-      return true;
-    }
+    if (!getToken()) {
+  window.location.href = "/signup.html";
+  return;
+}
 
     async function sendMessage(preset) {
       const text = (preset || $("chatInput").value).trim();
