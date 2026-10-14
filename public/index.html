@@ -2024,7 +2024,7 @@
           </div>
         </div>
         <div class="composer">
-          <textarea id="chatInput" placeholder="Type your message..." disabled></textarea>
+          <textarea id="chatInput" placeholder="Type your message..."></textarea>
           <button class="btn-send" id="sendBtn" type="button" disabled aria-label="Send">
             <i class="las la-paper-plane" aria-hidden="true"></i>
           </button>
@@ -2350,10 +2350,9 @@ function closeLimitModal() {
     }
 
     function enableChat() {
-      if (!getToken() || !selectedId) return;
-      $("chatInput").disabled = false;
-      $("sendBtn").disabled = false;
-    }
+  $("chatInput").disabled = false;
+  $("sendBtn").disabled = false;
+}
 
     function requireLogin() {
       if (getToken()) return false;
